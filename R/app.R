@@ -8,44 +8,56 @@
 #
 
 library(shiny)
+library(shinyFiles)
 
-# Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- shinyUI(fluidPage(
+  
+  shinyDirButton(id='directory', 
+                 label='Folder select', 
+                 title='Please select a folder'),
+  
+  column(1, offset = 11, 
+         actionButton("exitButton", "Exit")), #kill the app
+  
+  mainPanel(
+    tags$h4("Folder selected: ", 
+            verbatimTextOutput("directorypath")), # print out the path of the selected folder
+    width = 8),
+))
 
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
 
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
+server <- shinyServer(function(input, output, session) {
+  volumes <- c(Home = "/home/sneumann/tmp/",
+               "Orbitrap" = "/vol/PDArchive/NWC/Orbitrap_NWC/",
+               "microTOFq I" = "/vol/PDArchive/SEB/QTOF1/",
+               "microTOFq II" = "/vol/PDArchive/SEB/QTOF2/"
+  )
+#  volumes <- c(Home = fs::path_home())
+  
+  shinyDirChoose(input=input,
+                 id="directory",
+                 roots = volumes,
+                 session = session)
 
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
-    )
-)
+  output$directorypath <- renderPrint({
+    if (is.integer(input$directory)) {
+      cat("No directory has been selected")
+    } else {
+      cat(parseDirPath(roots=volumes, selection=input$directory))
+    }
+  })
+  
+  observeEvent(input$exitButton, {
+    stopApp()
+  })
+  
+})
 
-# Define server logic required to draw a histogram
-server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-    })
+build_app <- function() {
+  app <- shinyApp(ui = ui, server = server)
 }
 
 # Run the application 
+#shiny::runApp(build_app())
+
 shinyApp(ui = ui, server = server)
